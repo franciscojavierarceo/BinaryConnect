@@ -93,21 +93,26 @@ class LogisticRegression(object):
         srng = theano.sandbox.rng_mrg.MRG_RandomStreams(420)
         
         def hard_sigma(w):
-            return T.clip((w+1.)/2/,0,1)
+            return T.clip((w+1.)/2,0,1)
 
         if binary:
-            Wb = hard_sigma(self.W/self.W0)
             if stochastic:
+                # using numpy was insanely slow and it caused issues with having to evaluate the function
                 #Wb = T.cast(numpy.random.binomial(n=1, p=Wb, size=(n_in, n_out)),  theano.config.floatX)
-                Wb = srng.binomial(n=1, p=Wb, size=(n_in, n_out) )
+                Wb = hard_sigma(self.W/self.W0)
+                Wb = srng.binomial(n=1, p=Wb, size=(n_in, n_out) )         # This works much better
 
             else:
-                Wb = T.round(Wb)
+                # T.ge is greater than or equal to
+                Wb = T.ge(self.W, 0)
+                #Wb = T.round(Wb)
 
-            Wb = T.switch(Wb,self.W0, -self.W0)
+            Wb = T.switch(Wb, self.W0, -self.W0)
+            self.Wb = Wb
+
+            # The code below was way slower
             #Wb = T.cast(T.switch(Wb,self.W0, -self.W0), dtype=theano.config.floatX)
             #Wb = theano.shared(Wb.eval(), name='Wb', borrow=True)
-            self.Wb = Wb
 
         else:
             self.Wb = self.W
@@ -717,11 +722,10 @@ def train_nn(decay_learning_rate, train_model, train_model_perf, validate_model,
                 test_score = numpy.mean(test_losses)
 
                 if verbose:
-                    print('epoch %i, minibatch %i/%i, learning rate %f, training error %f %%, validation error %f %%, test error %f %%' %
+                    print('epoch %i, minibatch %i/%i, training error %f %%, validation error %f %%, test error %f %%' %
                         (epoch,
                          minibatch_index + 1,
                          n_train_batches,
-                         learning_rate.get_value(),
                          this_training_loss * 100.,
                          this_validation_loss * 100.,
                          test_score* 100.))
@@ -739,14 +743,14 @@ def train_nn(decay_learning_rate, train_model, train_model_perf, validate_model,
                     best_iter = iter
                     test_score = numpy.mean(test_losses)
 
-                    if verbose:
-                        print(('     epoch %i, minibatch %i/%i, test error of '
-                               'best model %f %%'
-                              'learning rate %f') %
-                              (epoch, minibatch_index + 1,
-                               n_train_batches,
-                               test_score * 100.,
-                              learning_rate.get_value()))
+                    # if verbose:
+                    #     print(('     epoch %i, minibatch %i/%i, test error of '
+                    #            'best model %f %%'
+                    #           'learning rate %f') %
+                    #           (epoch, minibatch_index + 1,
+                    #            n_train_batches,
+                    #            test_score * 100.,
+                    #           learning_rate.get_value()))
 
             if (patience <= iter) & early_stopping:
                 done_looping = True
