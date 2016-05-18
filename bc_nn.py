@@ -66,8 +66,8 @@ class LogisticRegression(object):
         # )
         W_values = numpy.asarray(
             rng.uniform(
-                low=-1.,#numpy.sqrt(6. / (n_in + n_out)),
-                high=1.,#numpy.sqrt(6. / (n_in + n_out)),
+                low= -1.,#numpy.sqrt(6. / (n_in + n_out)),
+                high= 1.,#numpy.sqrt(6. / (n_in + n_out)),
                 size=(n_in, n_out)
             ),
             dtype=theano.config.floatX
@@ -97,13 +97,14 @@ class LogisticRegression(object):
 
         if binary:
             if stochastic:
+                Wb = hard_sigma(self.W/self.W0)
                 # using numpy was insanely slow and it caused issues with having to evaluate the function
                 #Wb = T.cast(numpy.random.binomial(n=1, p=Wb, size=(n_in, n_out)),  theano.config.floatX)
-                Wb = hard_sigma(self.W/self.W0)
                 Wb = srng.binomial(n=1, p=Wb, size=(n_in, n_out) )         # This works much better
 
             else:
                 # T.ge is greater than or equal to
+                #Wb = T.ge(Wb, 0)
                 Wb = T.ge(self.W, 0)
                 #Wb = T.round(Wb)
 
@@ -283,7 +284,7 @@ class SVMLayer(object):
     # svm_cost/hinge loss  -- using this loss function based off of Matthieu Courbariaux's loss function
         # There are other versions of hinge multiclass loss functions though.
     def cost(self, y): 
-        return (T.mean(T.sqr(T.maximum(0., 1.-y*self.linear_output )) )).sum()
+        return T.mean(T.sqr(T.maximum(0., 1.-y*self.linear_output )) )
 
     def errors(self, y):
         return T.mean(T.neq(T.argmax(y,axis=1), self.y_pred))
@@ -363,13 +364,14 @@ class HiddenLayer(object):
             return p
 
         if binary:
-            Wb = hard_sigma(W/self.W0)
             if stochastic:
+                Wb = hard_sigma(W/self.W0)
                 #Wb = T.cast(numpy.random.binomial(n=1, p=Wb, size=(n_in, n_out)),  theano.config.floatX)
                 Wb = srng.binomial(n=1, p=Wb, size=(n_in, n_out) )
 
             else:
-                Wb = T.round(Wb)
+                #Wb = T.ge(Wb, 0)
+                Wb = T.ge(W, 0)
 
             Wb = T.switch(Wb, self.W0, -self.W0)
             self.Wb = Wb

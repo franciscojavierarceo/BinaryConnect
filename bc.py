@@ -169,23 +169,37 @@ def mlp(initial_learning_rate=0.3, final_learning_rate=0.01,
     # B = [b1, b2, b3, b4], zip generates a list C of same size, where each
     # element is a pair formed from the two lists :
     #    C = [(a1, b1), (a2, b2), (a3, b3), (a4, b4)]
+
+    # This is the forward progagation
     if binary:
         W0=theano.shared(classifier.W0, name='W0', borrow=True)    
         updates=[]
-        for i in range(classifier.len_params):
-            for j in range(n_hiddenLayers+1):
-                p=classifier.params[j*(classifier.len_params)+i]
-                if p.name in ('beta','gamma','b', 'Wb'):
-                    u = p - learning_rate * T.grad(cost, p)
-                    updates.append((p, u))
-                elif p.name=='W':
-                    n_Wb = classifier.params[j*(classifier.len_params)+i+2]
-                    u = p - learning_rate * T.grad(cost, n_Wb)
-                    u = T.clip(u, -W0, W0)
-                    updates.append((p, u))
-                else:
-                    continue
-    elif not binary:
+        for param in classifier.params:
+            if param.name not in ('beta','gamma','b', 'Wb', 'W'):
+                continue
+
+            u = param - learning_rate * T.grad(cost, param)
+            if param.name=='W':
+                u = T.clip(u, -1., 1.)
+            updates.append((param, u))
+
+    # if binary:
+    #     W0=theano.shared(classifier.W0, name='W0', borrow=True)    
+    #     updates=[]
+    #     for i in range(classifier.len_params):
+    #         for j in range(n_hiddenLayers+1):
+    #             p=classifier.params[j*(classifier.len_params)+i]
+
+    #             if p.name in ('beta','gamma','b', 'Wb'):
+    #                 u = p - learning_rate * T.grad(cost, p)
+    #                 updates.append((p, u))
+
+    #             if p.name=='W':
+    #                 n_Wb = classifier.params[j*(classifier.len_params)+i+2]
+    #                 u = p - learning_rate * T.grad(cost, n_Wb)
+    #                 u = T.clip(u, -W0, W0)
+    #                 updates.append((p, u))
+    if not binary:
         gparams = T.grad(cost, classifier.params)
         updates = [(p, p - learning_rate * gp) for p, gp in zip(classifier.params, gparams)]
 
